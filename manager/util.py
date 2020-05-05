@@ -15,7 +15,7 @@
 """
 
 
-from .configuration import cm_conf, EnvVars
+from .configuration import mm_conf, EnvVars
 import snorkels
 import typing
 import json
@@ -30,61 +30,61 @@ class ModuleState:
     inactive = "inactive"
 
 
-def parseModule(cmp: dict) -> typing.Tuple[dict, dict]:
-    cmp_data = {
-        "name": cmp["name"],
-        "description": cmp["description"],
-        "services": {key: {"hash": srv["hash"]} for key, srv in cmp["services"].items()},
-        "hash": cmp["hash"]
+def parseModule(module: dict) -> typing.Tuple[dict, dict]:
+    m_data = {
+        "name": module["name"],
+        "description": module["description"],
+        "services": {key: {"hash": srv["hash"]} for key, srv in module["services"].items()},
+        "hash": module["hash"]
     }
     configs = dict()
-    for key, srv in cmp["services"].items():
+    for key, srv in module["services"].items():
         del srv["hash"]
         configs[key] = srv
-    return cmp_data, configs
+    return m_data, configs
 
 
-def activateModule(kvs: snorkels.KeyValueStore, cmp: str, configs: dict, cmp_data):
+def activateModule(kvs: snorkels.KeyValueStore, mod: str, configs: dict, m_data):
     err = False
     for srv, config in configs.items():
         config["name"] = srv
         config["runtime_vars"] = {
-            EnvVars.ModuleID.name: cmp,
+            EnvVars.ModuleID.name: mod,
             EnvVars.GatewayLocalIP.name: EnvVars.GatewayLocalIP.value
         }
-        response = requests.post(url="{}/{}".format(cm_conf.DM.url, cm_conf.DM.api), json=config)
+        response = requests.post(url="{}/{}".format(mm_conf.DM.url, mm_conf.DM.api), json=config)
         if not response.status_code == 200:
             err = True
             break
     if not err:
         for srv in configs:
-            response = requests.patch(url="{}/{}/{}".format(cm_conf.DM.url, cm_conf.DM.api, srv), json={"state": "running"})
+            response = requests.patch(url="{}/{}/{}".format(mm_conf.DM.url, mm_conf.DM.api, srv), json={"state": "running"})
             if not response.status_code == 200:
                 err = True
                 break
     if not err:
-        cmp_data["state"] = ModuleState.active
-        kvs.set(cmp, json.dumps(cmp_data))
+        m_data["state"] = ModuleState.active
+        kvs.set(mod, json.dumps(m_data))
 
 
-def deactivateModule(kvs: snorkels.KeyValueStore, cmp: str, cmp_data):
+def deactivateModule(kvs: snorkels.KeyValueStore, mod: str, m_data):
     err = False
-    for srv in cmp_data["services"]:
-        response = requests.patch(url="{}/{}/{}".format(cm_conf.DM.url, cm_conf.DM.api, srv), json={"state": "stopped"})
+    for srv in m_data["services"]:
+        response = requests.patch(url="{}/{}/{}".format(mm_conf.DM.url, mm_conf.DM.api, srv), json={"state": "stopped"})
         if not response.status_code == 200:
             err = True
             break
     if not err:
-        cmp_data["state"] = ModuleState.inactive
-        kvs.set(cmp, json.dumps(cmp_data))
+        m_data["state"] = ModuleState.inactive
+        kvs.set(mod, json.dumps(m_data))
 
 
-def removeModule(kvs: snorkels.KeyValueStore, cmp, cmp_data):
+def removeModule(kvs: snorkels.KeyValueStore, mod, m_data):
     err = False
-    for srv in cmp_data["services"]:
-        response = requests.delete(url="{}/{}/{}".format(cm_conf.DM.url, cm_conf.DM.api, srv))
+    for srv in m_data["services"]:
+        response = requests.delete(url="{}/{}/{}".format(mm_conf.DM.url, mm_conf.DM.api, srv))
         if not response.status_code == 200:
             err = True
             break
     if not err:
-        kvs.delete(cmp)
+        kvs.delete(mod)
