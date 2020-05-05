@@ -41,7 +41,7 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter(fmt=msg_fmt, datefmt=date_fmt))
 
 
-logger = logging.getLogger("component-manager")
+logger = logging.getLogger("module-manager")
 logger.propagate = False
 logger.addHandler(handler)
 
