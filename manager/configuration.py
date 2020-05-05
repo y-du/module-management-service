@@ -48,6 +48,6 @@ class EnvVars:
         name = "GATEWAY_LOCAL_IP"
         value = os.getenv("GATEWAY_LOCAL_IP")
 
-    class ComponentID:
-        name = "COMPONENT_ID"
-        value = os.getenv("COMPONENT_ID")
+    class ModuleID:
+        name = "MODULE_ID"
+        value = os.getenv("MODULE_ID")
