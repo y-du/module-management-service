@@ -18,7 +18,7 @@ __all__ = ("Modules", "Module")
 
 
 from .logger import getLogger
-from .configuration import cm_conf, EnvVars
+from .configuration import mm_conf, EnvVars
 from .util import ModuleState, parseModule, activateModule, deactivateModule, removeModule
 from .worker import WorkerManager
 import snorkels
@@ -75,14 +75,14 @@ class Modules:
                         raise Exception("can't update active module '{}'".format(data["id"]))
                 except snorkels.GetError:
                     pass
-                cmp_data, configs = parseModule(data)
+                m_data, configs = parseModule(data)
                 response = requests.put(
-                    url="{}/{}/{}".format(cm_conf.CS.url, cm_conf.CS.api, data["id"]),
+                    url="{}/{}/{}".format(mm_conf.CS.url, mm_conf.CS.api, data["id"]),
                     json=configs
                 )
                 if response.status_code == 200:
-                    cmp_data["state"] = ModuleState.inactive
-                    self.__kvs.set(data["id"], json.dumps(cmp_data))
+                    m_data["state"] = ModuleState.inactive
+                    self.__kvs.set(data["id"], json.dumps(m_data))
                 else:
                     raise Exception("storing configs failed for '{}' - {}".format(data["id"], response.status_code))
                 resp.status = falcon.HTTP_200
@@ -124,20 +124,20 @@ class Module:
         else:
             try:
                 data = json.load(req.bounded_stream)
-                cmp_data = json.loads(self.__kvs.get(module))
+                m_data = json.loads(self.__kvs.get(module))
                 worker = self.__wm.getWorker(module)
                 if data["state"] == ModuleState.active:
-                    if not data["state"] == cmp_data["state"]:
-                        response = requests.get(url="{}/{}/{}".format(cm_conf.CS.url, cm_conf.CS.api, module))
+                    if not data["state"] == m_data["state"]:
+                        response = requests.get(url="{}/{}/{}".format(mm_conf.CS.url, mm_conf.CS.api, module))
                         if response.status_code == 200:
                             configs = response.json()
-                            worker.setTask(activateModule, kvs=self.__kvs, cmp=module, configs=configs, cmp_data=cmp_data)
+                            worker.setTask(activateModule, kvs=self.__kvs, mod=module, configs=configs, m_data=m_data)
                             worker.start()
                         else:
                             raise Exception("can't retrieve configs for '{}' - {}".format(module, response.status_code))
                 elif data["state"] == ModuleState.inactive:
-                    if not data["state"] == cmp_data["state"]:
-                        worker.setTask(deactivateModule, kvs=self.__kvs, cmp=module, cmp_data=cmp_data)
+                    if not data["state"] == m_data["state"]:
+                        worker.setTask(deactivateModule, kvs=self.__kvs, mod=module, m_data=m_data)
                         worker.start()
                 else:
                     raise ValueError("unknown state '{}'".format(data["state"]))
@@ -155,13 +155,13 @@ class Module:
     def on_delete(self, req: falcon.request.Request, resp: falcon.response.Response, module):
         reqDebugLog(req)
         try:
-            cmp_data = json.loads(self.__kvs.get(module))
-            if cmp_data["state"] == ModuleState.active:
+            m_data = json.loads(self.__kvs.get(module))
+            if m_data["state"] == ModuleState.active:
                 raise Exception("can't remove active module")
-            response = requests.delete(url="{}/{}/{}".format(cm_conf.CS.url, cm_conf.CS.api, module))
+            response = requests.delete(url="{}/{}/{}".format(mm_conf.CS.url, mm_conf.CS.api, module))
             if response.status_code == 200:
                 worker = self.__wm.getWorker(module)
-                worker.setTask(removeModule, kvs=self.__kvs, cmp=module, cmp_data=cmp_data)
+                worker.setTask(removeModule, kvs=self.__kvs, mod=module, m_data=m_data)
                 worker.start()
             else:
                 raise Exception("can't remove configs for '{}' - {}".format(module, response.status_code))
