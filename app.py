@@ -15,7 +15,7 @@
 """
 
 from manager.logger import initLogger
-from manager.configuration import cm_conf
+from manager.configuration import mm_conf
 from manager.worker import WorkerManager
 from manager import api
 import snorkels
@@ -23,7 +23,7 @@ import os
 import falcon
 
 
-initLogger(cm_conf.Logger.level)
+initLogger(mm_conf.Logger.level)
 
 local_storage = "{}/data".format(os.getcwd())
 
