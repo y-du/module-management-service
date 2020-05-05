@@ -22,15 +22,15 @@ import json
 import requests
 
 
-__all__ = ("ComponentState", "parseComponent", "activateComponent", "deactivateComponent", "removeComponent")
+__all__ = ("ModuleState", "parseModule", "activateModule", "deactivateModule", "removeModule")
 
 
-class ComponentState:
+class ModuleState:
     active = "active"
     inactive = "inactive"
 
 
-def parseComponent(cmp: dict) -> typing.Tuple[dict, dict]:
+def parseModule(cmp: dict) -> typing.Tuple[dict, dict]:
     cmp_data = {
         "name": cmp["name"],
         "description": cmp["description"],
@@ -44,12 +44,12 @@ def parseComponent(cmp: dict) -> typing.Tuple[dict, dict]:
     return cmp_data, configs
 
 
-def activateComponent(kvs: snorkels.KeyValueStore, cmp: str, configs: dict, cmp_data):
+def activateModule(kvs: snorkels.KeyValueStore, cmp: str, configs: dict, cmp_data):
     err = False
     for srv, config in configs.items():
         config["name"] = srv
         config["runtime_vars"] = {
-            EnvVars.ComponentID.name: cmp,
+            EnvVars.ModuleID.name: cmp,
             EnvVars.GatewayLocalIP.name: EnvVars.GatewayLocalIP.value
         }
         response = requests.post(url="{}/{}".format(cm_conf.DM.url, cm_conf.DM.api), json=config)
@@ -63,11 +63,11 @@ def activateComponent(kvs: snorkels.KeyValueStore, cmp: str, configs: dict, cmp_
                 err = True
                 break
     if not err:
-        cmp_data["state"] = ComponentState.active
+        cmp_data["state"] = ModuleState.active
         kvs.set(cmp, json.dumps(cmp_data))
 
 
-def deactivateComponent(kvs: snorkels.KeyValueStore, cmp: str, cmp_data):
+def deactivateModule(kvs: snorkels.KeyValueStore, cmp: str, cmp_data):
     err = False
     for srv in cmp_data["services"]:
         response = requests.patch(url="{}/{}/{}".format(cm_conf.DM.url, cm_conf.DM.api, srv), json={"state": "stopped"})
@@ -75,11 +75,11 @@ def deactivateComponent(kvs: snorkels.KeyValueStore, cmp: str, cmp_data):
             err = True
             break
     if not err:
-        cmp_data["state"] = ComponentState.inactive
+        cmp_data["state"] = ModuleState.inactive
         kvs.set(cmp, json.dumps(cmp_data))
 
 
-def removeComponent(kvs: snorkels.KeyValueStore, cmp, cmp_data):
+def removeModule(kvs: snorkels.KeyValueStore, cmp, cmp_data):
     err = False
     for srv in cmp_data["services"]:
         response = requests.delete(url="{}/{}/{}".format(cm_conf.DM.url, cm_conf.DM.api, srv))
