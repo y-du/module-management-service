@@ -62,8 +62,8 @@ class WorkerManager:
     def __d_clbk(self, name):
         self.__pool.remove(name)
 
-    def getWorker(self, cmp_name: str) -> Worker:
-        name = "worker-{}".format(cmp_name)
+    def getWorker(self, m_name: str) -> Worker:
+        name = "worker-{}".format(m_name)
         if name in self.__pool:
             raise WorkerExistsError("a task is still being executed by '{}'".format(name))
         return Worker(name, self.__s_clbk, self.__d_clbk)
