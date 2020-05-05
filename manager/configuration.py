@@ -14,7 +14,7 @@
    limitations under the License.
 """
 
-__all__ = ("cm_conf", "EnvVars")
+__all__ = ("mm_conf", "EnvVars")
 
 
 import simple_env_var
@@ -22,7 +22,7 @@ import os
 
 
 @simple_env_var.configuration
-class CMConf:
+class MMConf:
 
     @simple_env_var.section
     class DM:
@@ -39,7 +39,7 @@ class CMConf:
         level = "info"
 
 
-cm_conf = CMConf()
+mm_conf = MMConf()
 
 
 class EnvVars:
