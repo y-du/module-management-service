@@ -1,8 +1,8 @@
-### /components
+### /modules
 
 **GET**
 
-_List all installed components._
+_List all installed modules._
 
     Response media type: application/json
     
@@ -21,9 +21,9 @@ _List all installed components._
 
 **POST**
 
-_Install / update component. Saves component metadata locally and configs to Configuration Storage Service._
+_Install / update module. Saves module metadata locally and configs to Configuration Storage Service._
 
-_If updating the component state must be "inactive"._
+_If updating the module state must be "inactive"._
 
     Request media type: application/json
 
@@ -54,11 +54,11 @@ _If updating the component state must be "inactive"._
     }
 
 
-### /components/{component}
+### /modules/{module}
 
 **PATCH**
 
-_Change component state._
+_Change module state._
 
 _Setting state to "active" triggers deployment (create and start containers)._
 
@@ -74,8 +74,8 @@ _Setting state to "inactive" stops containers._
 
 **DELETE**
 
-_Remove component._
+_Remove module._
 
-_Component must be set to "inactive"._
+_module must be set to "inactive"._
 
 _Removes metadata, configs, containers, volumes, images._
