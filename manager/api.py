@@ -14,12 +14,12 @@
    limitations under the License.
 """
 
-__all__ = ("Components", "Component")
+__all__ = ("Modules", "Module")
 
 
 from .logger import getLogger
 from .configuration import cm_conf, EnvVars
-from .util import ComponentState, parseComponent, activateComponent, deactivateComponent, removeComponent
+from .util import ModuleState, parseModule, activateModule, deactivateModule, removeModule
 from .worker import WorkerManager
 import snorkels
 import requests
@@ -42,7 +42,7 @@ class ConflictError(Exception):
     pass
 
 
-class Components:
+class Modules:
     def __init__(self, kvs: snorkels.KeyValueStore):
         self.__kvs = kvs
 
@@ -67,28 +67,28 @@ class Components:
         else:
             try:
                 data = json.load(req.bounded_stream)
-                if data["id"] == EnvVars.ComponentID.value:
+                if data["id"] == EnvVars.ModuleID.value:
                     raise ConflictError
                 try:
                     cd = json.loads(self.__kvs.get(data["id"]))
-                    if cd["state"] == ComponentState.active:
-                        raise Exception("can't update active component '{}'".format(data["id"]))
+                    if cd["state"] == ModuleState.active:
+                        raise Exception("can't update active module '{}'".format(data["id"]))
                 except snorkels.GetError:
                     pass
-                cmp_data, configs = parseComponent(data)
+                cmp_data, configs = parseModule(data)
                 response = requests.put(
                     url="{}/{}/{}".format(cm_conf.CS.url, cm_conf.CS.api, data["id"]),
                     json=configs
                 )
                 if response.status_code == 200:
-                    cmp_data["state"] = ComponentState.inactive
+                    cmp_data["state"] = ModuleState.inactive
                     self.__kvs.set(data["id"], json.dumps(cmp_data))
                 else:
                     raise Exception("storing configs failed for '{}' - {}".format(data["id"], response.status_code))
                 resp.status = falcon.HTTP_200
             except ConflictError:
                 resp.status = falcon.HTTP_409
-                reqErrorLog(req, "component conflict")
+                reqErrorLog(req, "module conflict")
             except KeyError as ex:
                 resp.status = falcon.HTTP_400
                 reqErrorLog(req, ex)
@@ -97,15 +97,15 @@ class Components:
                 reqErrorLog(req, ex)
 
 
-class Component:
+class Module:
     def __init__(self, kvs: snorkels.KeyValueStore, wm: WorkerManager):
         self.__kvs = kvs
         self.__wm = wm
 
-    def on_get(self, req: falcon.request.Request, resp: falcon.response.Response, component):
+    def on_get(self, req: falcon.request.Request, resp: falcon.response.Response, module):
         reqDebugLog(req)
         try:
-            data = self.__kvs.get(component)
+            data = self.__kvs.get(module)
             resp.content_type = falcon.MEDIA_JSON
             resp.body = data.decode()
             resp.status = falcon.HTTP_200
@@ -116,7 +116,7 @@ class Component:
             resp.status = falcon.HTTP_500
             reqErrorLog(req, ex)
 
-    def on_patch(self, req: falcon.request.Request, resp: falcon.response.Response, component):
+    def on_patch(self, req: falcon.request.Request, resp: falcon.response.Response, module):
         reqDebugLog(req)
         if not req.content_type == falcon.MEDIA_JSON:
             resp.status = falcon.HTTP_415
@@ -124,20 +124,20 @@ class Component:
         else:
             try:
                 data = json.load(req.bounded_stream)
-                cmp_data = json.loads(self.__kvs.get(component))
-                worker = self.__wm.getWorker(component)
-                if data["state"] == ComponentState.active:
+                cmp_data = json.loads(self.__kvs.get(module))
+                worker = self.__wm.getWorker(module)
+                if data["state"] == ModuleState.active:
                     if not data["state"] == cmp_data["state"]:
-                        response = requests.get(url="{}/{}/{}".format(cm_conf.CS.url, cm_conf.CS.api, component))
+                        response = requests.get(url="{}/{}/{}".format(cm_conf.CS.url, cm_conf.CS.api, module))
                         if response.status_code == 200:
                             configs = response.json()
-                            worker.setTask(activateComponent, kvs=self.__kvs, cmp=component, configs=configs, cmp_data=cmp_data)
+                            worker.setTask(activateModule, kvs=self.__kvs, cmp=module, configs=configs, cmp_data=cmp_data)
                             worker.start()
                         else:
-                            raise Exception("can't retrieve configs for '{}' - {}".format(component, response.status_code))
-                elif data["state"] == ComponentState.inactive:
+                            raise Exception("can't retrieve configs for '{}' - {}".format(module, response.status_code))
+                elif data["state"] == ModuleState.inactive:
                     if not data["state"] == cmp_data["state"]:
-                        worker.setTask(deactivateComponent, kvs=self.__kvs, cmp=component, cmp_data=cmp_data)
+                        worker.setTask(deactivateModule, kvs=self.__kvs, cmp=module, cmp_data=cmp_data)
                         worker.start()
                 else:
                     raise ValueError("unknown state '{}'".format(data["state"]))
@@ -152,19 +152,19 @@ class Component:
                 resp.status = falcon.HTTP_500
                 reqErrorLog(req, ex)
 
-    def on_delete(self, req: falcon.request.Request, resp: falcon.response.Response, component):
+    def on_delete(self, req: falcon.request.Request, resp: falcon.response.Response, module):
         reqDebugLog(req)
         try:
-            cmp_data = json.loads(self.__kvs.get(component))
-            if cmp_data["state"] == ComponentState.active:
-                raise Exception("can't remove active component")
-            response = requests.delete(url="{}/{}/{}".format(cm_conf.CS.url, cm_conf.CS.api, component))
+            cmp_data = json.loads(self.__kvs.get(module))
+            if cmp_data["state"] == ModuleState.active:
+                raise Exception("can't remove active module")
+            response = requests.delete(url="{}/{}/{}".format(cm_conf.CS.url, cm_conf.CS.api, module))
             if response.status_code == 200:
-                worker = self.__wm.getWorker(component)
-                worker.setTask(removeComponent, kvs=self.__kvs, cmp=component, cmp_data=cmp_data)
+                worker = self.__wm.getWorker(module)
+                worker.setTask(removeModule, kvs=self.__kvs, cmp=module, cmp_data=cmp_data)
                 worker.start()
             else:
-                raise Exception("can't remove configs for '{}' - {}".format(component, response.status_code))
+                raise Exception("can't remove configs for '{}' - {}".format(module, response.status_code))
             resp.status = falcon.HTTP_200
         except snorkels.DeleteError as ex:
             resp.status = falcon.HTTP_404
