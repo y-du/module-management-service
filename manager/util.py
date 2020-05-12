@@ -75,6 +75,12 @@ def deactivateModule(kvs: snorkels.KeyValueStore, mod: str, m_data):
             err = True
             break
     if not err:
+        for srv in m_data["services"]:
+            response = requests.delete(url="{}/{}/{}".format(mm_conf.DM.url, mm_conf.DM.api, srv))
+            if not response.status_code == 200:
+                err = True
+                break
+    if not err:
         m_data["state"] = ModuleState.inactive
         kvs.set(mod, json.dumps(m_data))
 
@@ -82,7 +88,7 @@ def deactivateModule(kvs: snorkels.KeyValueStore, mod: str, m_data):
 def removeModule(kvs: snorkels.KeyValueStore, mod, m_data):
     err = False
     for srv in m_data["services"]:
-        response = requests.delete(url="{}/{}/{}".format(mm_conf.DM.url, mm_conf.DM.api, srv))
+        response = requests.delete(url="{}/{}/{}?option=purge".format(mm_conf.DM.url, mm_conf.DM.api, srv))
         if not response.status_code == 200:
             err = True
             break
